@@ -1,0 +1,5 @@
+# Don't commit build output.
+build/
+
+# Don't commit local SDK configuration.
+sdkconfig
