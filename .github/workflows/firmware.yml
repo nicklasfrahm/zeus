@@ -1,0 +1,33 @@
+name: Firmware
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - release
+          - debug
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+        
+      - name: Select configuration
+        run: mv firmware/config/sdkconfig-${{ matrix.target }} firmware/sdkconfig
+
+      - name: Compile firmware
+        uses: espressif/esp-idf-ci-action@main
+        with:
+          path: firmware
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: build-${{ matrix.target }}
+          path: firmware/build/*
