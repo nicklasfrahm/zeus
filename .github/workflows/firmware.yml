@@ -27,11 +27,11 @@ jobs:
         with:
           path: firmware
 
-      - name: Archive artifacts
+      - name: Archive and organize artifacts
         run: |
           mkdir -p release
-          pushd firmware/build
-          zip -r ../../release/build-${{ matrix.target }}.zip .
+          pushd firmware
+          zip -r ../release/build-${{ matrix.target }}.zip build
           popd
           cp firmware/build/zeus.bin release/zeus-${{ matrix.target }}.bin
 
