@@ -6,9 +6,10 @@ FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-${VARIANT}
 
 # [Optional] Uncomment this section to install additional packages.
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-    && apt-get -y install --no-install-recommends git wget flex git-lfs \
-    bison gperf python3 python3-pip python3-setuptools cmake ninja-build \
-    ccache libffi-dev libssl-dev dfu-util
+    && apt-get -y install --no-install-recommends git wget \
+    flex bison gperf python3 python3-pip python3-setuptools \
+    cmake ninja-build ccache libffi-dev libssl-dev dfu-util \
+    libusb-1.0-0 python-is-python3
 
 # Install ESP-IDF.
 RUN mkdir -p ~/esp \
