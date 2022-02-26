@@ -26,17 +26,19 @@ jobs:
         with:
           path: firmware
 
+      - name: Archive artifacts
+        run: |
+          mkdir -p release
+          pushd firmware/build
+          zip -r ../../release/build-${{ matrix.target }}.zip .
+          popd
+          cp firmware/build/zeus.bin release/zeus-${{ matrix.target }}.bin
+
       - name: Upload raw build output
         uses: actions/upload-artifact@v2
         with:
-          name: build-${{ matrix.target }}
-          path: firmware/build/*
-
-      - name: Select release artifacts
-        run: |
-          mkdir -p release
-          zip -r release/build-${{ matrix.target }}.zip firmware/build
-          cp firmware/build/zeus.bin release/zeus-${{ matrix.target }}.bin
+          name: build-${{ matrix.target }}.zip
+          path: release/build-${{ matrix.target }}.zip
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v2
@@ -57,6 +59,11 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: release
+
+      - name: List release assets
+        run: |
+          ls -lah
+          ls -lah release
 
       - uses: codfish/semantic-release-action@v1
         id: semantic
