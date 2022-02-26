@@ -12,7 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - esp32-release
+          - esp32
           - esp32-debug
     steps:
       - name: Clone repository
@@ -26,8 +26,39 @@ jobs:
         with:
           path: firmware
 
-      - name: Upload binaries
+      - name: Upload raw build output
         uses: actions/upload-artifact@v2
         with:
           name: build-${{ matrix.target }}
           path: firmware/build/*
+
+      - name: Select release artifacts
+        run: |
+          mkdir -p release
+          zip -r release/build-${{ matrix.target }}.zip firmware/build
+          cp firmware/build/zeus.bin release/zeus-${{ matrix.target }}.bin
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: release
+          path: release/**
+
+  release:
+    name: Release
+    if: github.ref_protected
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v2
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: release
+
+      - uses: codfish/semantic-release-action@v1
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
