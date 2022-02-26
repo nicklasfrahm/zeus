@@ -35,12 +35,6 @@ jobs:
           popd
           cp firmware/build/zeus.bin release/zeus-${{ matrix.target }}.bin
 
-      - name: Upload raw build output
-        uses: actions/upload-artifact@v2
-        with:
-          name: build-${{ matrix.target }}.zip
-          path: release/build-${{ matrix.target }}.zip
-
       - name: Upload release artifacts
         uses: actions/upload-artifact@v2
         with:
