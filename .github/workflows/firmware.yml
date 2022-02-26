@@ -2,6 +2,7 @@ name: Firmware
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
 
 jobs:
@@ -59,11 +60,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: release
-
-      - name: List release assets
-        run: |
-          ls -lah
-          ls -lah release
+          path: release
 
       - uses: codfish/semantic-release-action@v1
         id: semantic
