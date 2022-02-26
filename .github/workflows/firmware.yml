@@ -12,14 +12,14 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - release
-          - debug
+          - esp32-release
+          - esp32-debug
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
         
       - name: Select configuration
-        run: mv firmware/config/sdkconfig-${{ matrix.target }} firmware/sdkconfig
+        run: mv firmware/config/${{ matrix.target }} firmware/sdkconfig
 
       - name: Compile firmware
         uses: espressif/esp-idf-ci-action@main
