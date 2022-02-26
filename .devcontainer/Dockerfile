@@ -18,5 +18,5 @@ RUN mkdir -p ~/esp \
     && cd ~/esp/esp-idf \
     && ./install.sh
 
-# Make ESP-IDF tool available in PATH.
-RUN echo "source $HOME/esp/esp-idf/export.sh > /dev/null" >> ~/.bashrc
+# Set up alias to make ESP-IDF tool available in PATH.
+RUN echo "alias idf='. $HOME/esp/esp-idf/export.sh'" >> ~/.bashrc
