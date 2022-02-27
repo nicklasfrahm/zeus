@@ -1,14 +1,13 @@
 #include "net.h"
 
+#include <driver/gpio.h>
+#include <esp_err.h>
+#include <esp_eth.h>
+#include <esp_event.h>
+#include <esp_log.h>
+#include <esp_netif.h>
 #include <math.h>
 #include <stdint.h>
-
-#include "driver/gpio.h"
-#include "esp_err.h"
-#include "esp_eth.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "esp_netif.h"
 
 static uint32_t netmask2prefix(const esp_ip4_addr_t *netmask) {
   return (uint32_t)round(log2(netmask->addr));
@@ -58,13 +57,24 @@ static void net_ip_event_handler(void *arg, esp_event_base_t event_base,
 
   // Log information about the IP status.
   ESP_LOGI(TAG_IP, "address: " IPSTR "/%d", IP2STR(&ip_info->ip), prefix);
-  ESP_LOGI(TAG_IP, "gateway:" IPSTR, IP2STR(&ip_info->gw));
+  ESP_LOGI(TAG_IP, "gateway: " IPSTR, IP2STR(&ip_info->gw));
 }
 
-esp_err_t net_eth_configure_and_start(void) {
+esp_err_t net_eth_start(void) {
+  // Prevent excessive logging.
   esp_log_level_set("system_api", ESP_LOG_WARN);
   esp_log_level_set("esp_eth.netif.netif_glue", ESP_LOG_WARN);
   esp_log_level_set("esp_netif_handlers", ESP_LOG_WARN);
+
+  // Register event handlers for logging.
+  ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
+                                             &net_eth_event_handler, NULL));
+  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP,
+                                             &net_ip_event_handler, NULL));
+
+  // Create default network configuration for usage with ethernet interface.
+  esp_netif_config_t netif_cfg = ESP_NETIF_DEFAULT_ETH();
+  esp_netif_t *netif = esp_netif_new(&netif_cfg);
 
   // Configure physical ethernet, also known as PHY or OSI layer 1.
   eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
@@ -86,23 +96,9 @@ esp_err_t net_eth_configure_and_start(void) {
   static esp_eth_handle_t eth_handle = NULL;
   ESP_ERROR_CHECK(esp_eth_driver_install(&config, &eth_handle));
 
-  // Initialize TCP/IP network interface. Note, that this should be called only
-  // once in application.
-  ESP_ERROR_CHECK(esp_netif_init());
-
-  // Create default network configuration for usage with ethernet interface.
-  esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
-  esp_netif_t *eth_netif = esp_netif_new(&cfg);
-
-  // Register event handlers for logging.
-  ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
-                                             &net_eth_event_handler, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_ETH_GOT_IP,
-                                             &net_ip_event_handler, NULL));
-
   // Attach ethernet driver to IP network interface.
-  ESP_ERROR_CHECK(
-      esp_netif_attach(eth_netif, esp_eth_new_netif_glue(eth_handle)));
+  esp_eth_netif_glue_handle_t eth_driver = esp_eth_new_netif_glue(eth_handle);
+  ESP_ERROR_CHECK(esp_netif_attach(netif, eth_driver));
 
   // Start the ethernet driver state machine.
   ESP_ERROR_CHECK(esp_eth_start(eth_handle));
