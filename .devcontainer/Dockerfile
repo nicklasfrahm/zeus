@@ -18,9 +18,5 @@ RUN mkdir -p ~/esp \
     && cd ~/esp/esp-idf \
     && ./install.sh
 
-# Set up canonical compiler path independent of installed SDK version.
-RUN ln -s $(find $HOME -name xtensa-esp32-elf-gcc) /usr/bin/xtensa-esp32-elf-gcc
-RUN ln -s $(find $HOME -name xtensa-esp32-elf-g++) /usr/bin/xtensa-esp32-elf-g++
-
 # Set up alias to make ESP-IDF tool available in PATH.
 RUN echo "alias idf='. $HOME/esp/esp-idf/export.sh'" >> ~/.bashrc

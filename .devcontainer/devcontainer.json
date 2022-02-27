@@ -4,29 +4,25 @@
     "dockerfile": "Dockerfile",
     // Update 'VARIANT' to pick an Debian / Ubuntu OS version: debian-10, debian-9, ubuntu-20.04, ubuntu-18.04
     "args": {
-      "VARIANT": "debian-11"
-    }
+      "VARIANT": "debian-11",
+    },
   },
   "runArgs": [
-    "--privileged"
+    "--privileged",
   ],
   // Set *default* container specific settings.json values on container create.
   "settings": {
     "explorer.sortOrder": "default",
     "terminal.integrated.defaultProfile.linux": "bash",
-    "cmake.buildDirectory": "${workspaceFolder}/firmware/build",
-    "cmake.sourceDirectory": "${workspaceFolder}/firmware",
-    "cmake.configureOnOpen": false,
   },
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
     "ms-vscode.cpptools",
-    "ms-vscode.cmake-tools",
     "editorconfig.editorconfig",
-    "bierner.markdown-preview-github-styles"
+    "bierner.markdown-preview-github-styles",
   ],
   "mounts": [
-    "source=/dev,target=/dev,type=bind"
+    "source=/dev,target=/dev,type=bind",
   ],
   // Use 'forwardPorts' to make a list of ports inside the container available locally.
   // "forwardPorts": [],
