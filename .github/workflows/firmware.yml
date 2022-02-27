@@ -18,7 +18,20 @@ jobs:
     steps:
       - name: Clone repository
         uses: actions/checkout@v2
-        
+
+      - name: Fetch version from git history
+        if: github.ref_protected
+        uses: cycjimmy/semantic-release-action@v1
+        id: semantic
+        with:
+          dry_run: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create version configuration
+        if: github.ref_protected
+        run: echo ${{ steps.semantic.outputs.new_release_version }} > firmware/version.txt
+
       - name: Select configuration
         run: mv firmware/config/${{ matrix.target }} firmware/sdkconfig
 
@@ -56,7 +69,7 @@ jobs:
           name: release
           path: release
 
-      - uses: codfish/semantic-release-action@v1
-        id: semantic
+      - name: Create release
+        uses: cycjimmy/semantic-release-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
