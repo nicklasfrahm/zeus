@@ -14,10 +14,15 @@
   "settings": {
     "explorer.sortOrder": "default",
     "terminal.integrated.defaultProfile.linux": "bash",
+    "cmake.configureOnEdit": false,
+    "cmake.configureOnOpen": false,
+    "cmake.sourceDirectory": "${workspaceFolder}/firmware",
+    "cmake.buildDirectory": "${workspaceFolder}/firmware/build"
   },
   // Add the IDs of extensions you want installed when the container is created.
   "extensions": [
     "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools",
     "editorconfig.editorconfig",
     "bierner.markdown-preview-github-styles",
   ],
