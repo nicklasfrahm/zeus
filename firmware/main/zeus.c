@@ -1,14 +1,11 @@
-#include <esp_event.h>
-#include <esp_http_server.h>
-#include <esp_log.h>
-#include <nvs.h>
-#include <nvs_flash.h>
-
+#include "esp_event.h"
+#include "esp_http_server.h"
+#include "esp_log.h"
 #include "http.h"
 #include "net.h"
-
-// #define FIRMWARE_URL
-// "https://github.com/nicklasfrahm/zeus/releases/latest/download/zeus-esp32.bin"
+#include "nvs.h"
+#include "nvs_flash.h"
+#include "update.h"
 
 void app_main(void) {
   // Initialize non-volatile storage.
@@ -49,4 +46,7 @@ void app_main(void) {
   // setup of the HTTP server as it will automatically
   // come online after the interface is up.
   ESP_ERROR_CHECK(net_eth_start());
+
+  // Start thread to handle firmware updates automatically.
+  ESP_ERROR_CHECK(update_init(5));
 }

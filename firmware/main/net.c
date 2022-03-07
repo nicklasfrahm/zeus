@@ -1,16 +1,20 @@
 #include "net.h"
 
-#include <driver/gpio.h>
-#include <esp_err.h>
-#include <esp_eth.h>
-#include <esp_event.h>
-#include <esp_log.h>
-#include <esp_netif.h>
 #include <math.h>
 #include <stdint.h>
 
-static uint32_t netmask2prefix(const esp_ip4_addr_t *netmask) {
-  return (uint32_t)round(log2(netmask->addr));
+#include "driver/gpio.h"
+#include "esp_err.h"
+#include "esp_eth.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include "esp_netif.h"
+
+// TODO: Abstract network interfaces.
+// TODO: Signal online status.
+
+static uint8_t netmask2prefix(const esp_ip4_addr_t *netmask) {
+  return (uint8_t)round(log2(netmask->addr));
 }
 
 // Log ethernet status information.
@@ -23,20 +27,20 @@ static void net_eth_event_handler(void *arg, esp_event_base_t event_base,
   switch (event_id) {
     case ETHERNET_EVENT_CONNECTED: {
       esp_eth_ioctl(eth_handle, ETH_CMD_G_MAC_ADDR, mac_addr);
-      ESP_LOGI(TAG_ETH, "link up: %02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0],
+      ESP_LOGI(TAG_ETH, "Link up: %02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0],
                mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
       break;
     }
     case ETHERNET_EVENT_DISCONNECTED: {
-      ESP_LOGI(TAG_ETH, "link down");
+      ESP_LOGI(TAG_ETH, "Link down");
       break;
     }
     case ETHERNET_EVENT_START: {
-      ESP_LOGI(TAG_ETH, "started");
+      ESP_LOGI(TAG_ETH, "Started");
       break;
     }
     case ETHERNET_EVENT_STOP: {
-      ESP_LOGI(TAG_ETH, "stopped");
+      ESP_LOGI(TAG_ETH, "Stopped");
       break;
     }
     default: {
@@ -53,11 +57,11 @@ static void net_ip_event_handler(void *arg, esp_event_base_t event_base,
   const esp_netif_ip_info_t *ip_info = &event->ip_info;
 
   // Convert netmask to CIDR prefix.
-  uint32_t prefix = netmask2prefix(&ip_info->netmask);
+  uint8_t prefix = netmask2prefix(&ip_info->netmask);
 
   // Log information about the IP status.
-  ESP_LOGI(TAG_IP, "address: " IPSTR "/%d", IP2STR(&ip_info->ip), prefix);
-  ESP_LOGI(TAG_IP, "gateway: " IPSTR, IP2STR(&ip_info->gw));
+  ESP_LOGI(TAG_IP, "Address: " IPSTR "/%d", IP2STR(&ip_info->ip), prefix);
+  ESP_LOGI(TAG_IP, "Gateway: " IPSTR, IP2STR(&ip_info->gw));
 }
 
 esp_err_t net_eth_start(void) {

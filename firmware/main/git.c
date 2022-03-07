@@ -1,6 +1,7 @@
 #include "git.h"
 
 #include <stdio.h>
+#include <string.h>
 
 /////////////
 // git_url //
@@ -20,9 +21,9 @@ static char support_message_template[] =
 
 static char* support_message = NULL;
 
-const char* git_support_message(void) {
+char* git_support_message(void) {
   if (support_message == NULL) {
-    asprintf(support_message, support_message_template, url);
+    asprintf(&support_message, support_message_template, url);
   }
   return support_message;
 }
@@ -31,12 +32,12 @@ const char* git_support_message(void) {
 // git_release_download_url //
 //////////////////////////////
 
-const char* git_release_download_url(const* version, const* file) {
+char* git_release_download_url(const char* version, const char* file) {
   char* url;
   if (strcmp(version, "latest") == 0) {
-    asprintf(url, "%s/releases/latest/download/%s", git_url(), file);
+    asprintf(&url, "%s/releases/latest/download/%s", git_url(), file);
   } else {
-    asprintf(url, "%s/releases/download/%s/%s", git_url(), version, file);
+    asprintf(&url, "%s/releases/download/%s/%s", git_url(), version, file);
   }
   return url;
 }

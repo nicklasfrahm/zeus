@@ -1,13 +1,46 @@
 #include "http.h"
 
-#include <cJSON.h>
-#include <esp_err.h>
-#include <esp_eth.h>
-#include <esp_event.h>
-#include <esp_http_server.h>
-#include <esp_log.h>
-#include <esp_netif.h>
-#include <esp_ota_ops.h>
+#include <stdio.h>
+
+#include "cJSON.h"
+#include "esp_err.h"
+#include "esp_eth.h"
+#include "esp_event.h"
+#include "esp_http_server.h"
+#include "esp_log.h"
+#include "esp_netif.h"
+#include "esp_ota_ops.h"
+#include "git.h"
+
+// TODO: Refactor this.
+
+/////////////////
+// HTTP client //
+/////////////////
+
+char* http_user_agent(void) {
+  char* user_agent;
+
+  // Get information about the currently running partition, such as firmware
+  // name and version.
+  const esp_partition_t* partition = esp_ota_get_running_partition();
+  esp_app_desc_t app;
+  esp_err_t err = esp_ota_get_partition_description(partition, &app);
+  if (err != ESP_OK) {
+    asprintf(&user_agent, "unknown/unknown (+%s)", git_url());
+    return user_agent;
+  }
+
+  asprintf(&user_agent, "%s/%s (+%s)", app.project_name, app.version,
+           git_url());
+  return user_agent;
+}
+
+/////////////////
+// HTTP server //
+/////////////////
+
+#define TAG_SERVER "http: server"
 
 static httpd_handle_t http_server = NULL;
 
@@ -58,10 +91,6 @@ static esp_err_t health_list_endpoint(httpd_req_t* req) {
   cJSON* response = cJSON_CreateObject();
   cJSON_AddItemReferenceToObject(response, "data", data);
 
-  // // Send the response including both, the headers and the body.
-  // const char* resp_str = (const char*)"{\"hello\":\"world\"}";
-  // httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
-
   return http_send_json(req, response);
 }
 
@@ -78,13 +107,13 @@ static httpd_handle_t start_webserver(void) {
 
   // Start the httpd server.
   if (httpd_start(&server, &config) != ESP_OK) {
-    ESP_LOGI(TAG_HTTP_SERVER, "failed to start server");
+    ESP_LOGI(TAG_SERVER, "Failed to start server");
     return NULL;
   }
 
   // Configure application endpoints.
   httpd_register_uri_handler(server, &health_list);
-  ESP_LOGI(TAG_HTTP_SERVER, "listening on 0.0.0.0:%d", config.server_port);
+  ESP_LOGI(TAG_SERVER, "Listening on: 0.0.0.0:%d", config.server_port);
   return server;
 }
 
@@ -97,7 +126,7 @@ static void disconnect_handler(void* arg, esp_event_base_t event_base,
                                int32_t event_id, void* event_data) {
   httpd_handle_t* server = (httpd_handle_t*)arg;
   if (*server) {
-    ESP_LOGI(TAG_HTTP_SERVER, "stopping");
+    ESP_LOGI(TAG_SERVER, "Stopping ...");
     stop_webserver(*server);
     *server = NULL;
   }
@@ -107,7 +136,7 @@ static void connect_handler(void* arg, esp_event_base_t event_base,
                             int32_t event_id, void* event_data) {
   httpd_handle_t* server = (httpd_handle_t*)arg;
   if (*server == NULL) {
-    ESP_LOGI(TAG_HTTP_SERVER, "starting");
+    ESP_LOGI(TAG_SERVER, "Starting ...");
     *server = start_webserver();
   }
 }
@@ -119,5 +148,9 @@ esp_err_t http_server_init(void) {
   ESP_ERROR_CHECK(
       esp_event_handler_register(ETH_EVENT, ETHERNET_EVENT_DISCONNECTED,
                                  &disconnect_handler, &http_server));
+
+  // TODO: Reduce tight coupling between ethernet (online/offline events)
+  // and other modules.
+
   return ESP_OK;
 }

@@ -14,7 +14,7 @@ const char* git_url(void);
  *
  * @return A string.
  */
-const char* git_support_message(void);
+char* git_support_message(void);
 
 /**
  * Generate a download URL for a file of a given release version.
@@ -24,6 +24,6 @@ const char* git_support_message(void);
  *
  * @return A heap-allocated string. WATCH OUT FOR MEMORY LEAKS!
  */
-const char* git_release_download_url(const* version, const* file);
+char* git_release_download_url(const char* version, const char* file);
 
 #endif
