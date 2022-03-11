@@ -36,6 +36,10 @@ char* http_user_agent(void) {
   return user_agent;
 }
 
+bool http_is_redirect(int32_t status) {
+  return (bool)(status >= 300 && status < 400);
+}
+
 /////////////////
 // HTTP server //
 /////////////////
