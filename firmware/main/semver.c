@@ -69,7 +69,10 @@ void semver_parse(semver_t* ver, const char* str) {
     i += 1;
   }
 
-  // The prerelease version is separated by a dot.
+  // Parse the prerelease version, if present.
+  if (str[cursor] == 0) {
+    return;
+  }
   semver_parse_int(&ver->prerelease, &str[cursor]);
 }
 
