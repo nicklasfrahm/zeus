@@ -1,5 +1,4 @@
 #include "esp_event.h"
-#include "esp_http_server.h"
 #include "esp_log.h"
 #include "http.h"
 #include "net.h"
@@ -8,6 +7,12 @@
 #include "update.h"
 
 void app_main(void) {
+  // Prevent excessive logging.
+  esp_log_level_set("system_api", ESP_LOG_WARN);
+  esp_log_level_set("esp_eth.netif.netif_glue", ESP_LOG_WARN);
+  esp_log_level_set("esp_netif_handlers", ESP_LOG_WARN);
+  esp_log_level_set("esp-x509-crt-bundle", ESP_LOG_WARN);
+
   // Initialize non-volatile storage.
   esp_err_t err = nvs_flash_init();
   if (err == ESP_ERR_NVS_NO_FREE_PAGES ||
@@ -45,7 +50,7 @@ void app_main(void) {
   // for some informative logging. Do this after the
   // setup of the HTTP server as it will automatically
   // come online after the interface is up.
-  ESP_ERROR_CHECK(net_eth_start());
+  ESP_ERROR_CHECK(net_eth_init());
 
   // Start thread to handle firmware updates automatically.
   ESP_ERROR_CHECK(update_init(5));

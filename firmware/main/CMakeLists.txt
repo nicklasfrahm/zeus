@@ -8,5 +8,4 @@ idf_component_register(
        "update.c"
        "zeus.c"
   INCLUDE_DIRS "."
-  EMBED_TXTFILES ${project_dir}/certs/github_com_ca_cert.pem
 )

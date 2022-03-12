@@ -44,7 +44,7 @@ bool http_is_redirect(int32_t status) {
 // HTTP server //
 /////////////////
 
-#define TAG_SERVER "http: server"
+#define TAG_SERVER "http.server"
 
 static httpd_handle_t http_server = NULL;
 

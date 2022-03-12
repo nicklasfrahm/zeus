@@ -3,10 +3,14 @@
 
 #include "esp_err.h"
 
-#define TAG_ETH "net: eth"
-#define TAG_IP "net: ip"
+#define TAG_ETH "net.eth"
+#define TAG_IP "net.ip"
 
-// Configure and start the ethernet interface.
-esp_err_t net_eth_start(void);
+/**
+ * Configure and bring up the ethernet interface.
+ *
+ * @return ESP_OK if the interface can be configured successfully.
+ */
+esp_err_t net_eth_init(void);
 
 #endif

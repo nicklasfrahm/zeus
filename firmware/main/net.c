@@ -64,12 +64,7 @@ static void net_ip_event_handler(void *arg, esp_event_base_t event_base,
   ESP_LOGI(TAG_IP, "Gateway: " IPSTR, IP2STR(&ip_info->gw));
 }
 
-esp_err_t net_eth_start(void) {
-  // Prevent excessive logging.
-  esp_log_level_set("system_api", ESP_LOG_WARN);
-  esp_log_level_set("esp_eth.netif.netif_glue", ESP_LOG_WARN);
-  esp_log_level_set("esp_netif_handlers", ESP_LOG_WARN);
-
+esp_err_t net_eth_init(void) {
   // Register event handlers for logging.
   ESP_ERROR_CHECK(esp_event_handler_register(ETH_EVENT, ESP_EVENT_ANY_ID,
                                              &net_eth_event_handler, NULL));

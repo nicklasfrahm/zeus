@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "esp_crt_bundle.h"
 #include "esp_err.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -20,13 +21,7 @@
 // Log prefix to be used.
 #define TAG "update"
 // Size of the buffer used to write the OTA data to the flash.
-#define BUFFER_SIZE 1024
-
-// Reference to the embedded HTTPS CA certificate.
-extern const uint8_t ca_cert_pem_start[] asm(
-    "_binary_github_com_ca_cert_pem_start");
-extern const uint8_t ca_cert_pem_end[] asm(
-    "_binary_github_com_ca_cert_pem_end");
+#define BUFFER_SIZE 2048
 
 // Update channel, which may either be "latest" or an existing Git tag.
 static char* channel = "latest";
@@ -161,7 +156,7 @@ static esp_err_t update_execute(const char* firmware_url,
 
   esp_http_client_config_t config = {
       .url = firmware_url,
-      .cert_pem = (char*)ca_cert_pem_start,
+      .crt_bundle_attach = esp_crt_bundle_attach,
       .timeout_ms = 10 * 1000,
       .keep_alive_enable = true,
       .user_agent = user_agent,
