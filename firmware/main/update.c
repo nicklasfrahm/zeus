@@ -12,6 +12,7 @@
 #include "esp_log.h"
 #include "esp_ota_ops.h"
 #include "esp_pthread.h"
+#include "esp_tls.h"
 #include "git.h"
 #include "http.h"
 #include "semver.h"
@@ -173,13 +174,29 @@ static esp_err_t update_execute(const char* firmware_url,
     return ESP_FAIL;
   }
 
-  err = esp_http_client_open(client, 0);
-  if (err != ESP_OK) {
-    ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-    esp_http_client_cleanup(client);
-    return err;
-  }
-  esp_http_client_fetch_headers(client);
+  // Follow redirects until resource is found.
+  int32_t status = 0;
+  do {
+    char url[512];
+    esp_http_client_get_url(client, url, 512);
+    ESP_LOGW(TAG, "Request: %s", url);
+
+    err = esp_http_client_open(client, 0);
+    if (err != ESP_OK) {
+      ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
+      esp_http_client_cleanup(client);
+      return err;
+    }
+    esp_http_client_fetch_headers(client);
+
+    status = esp_http_client_get_status_code(client);
+    ESP_LOGW(TAG, "Status: %d", status);
+
+    if (http_is_redirect(status)) {
+      status = 0;
+      esp_http_client_set_redirection(client);
+    }
+  } while (status == 0);
 
   // Handle for update partition.
   const esp_partition_t* part = esp_ota_get_next_update_partition(NULL);
@@ -211,32 +228,11 @@ static esp_err_t update_execute(const char* firmware_url,
                                  sizeof(esp_app_desc_t);
 
         if (bytes_read <= app_info_offset) {
-          // Check for redirect.
-          int64_t status = esp_http_client_get_status_code(client);
-          // TODO: Remove this.
-          ESP_LOGW(TAG, "Status code: %lld", status);
-          if (status != 302) {
-            ESP_LOGE(TAG,
-                     "Failed to download firmware: "
-                     "Firmware image incomplete");
-            esp_http_client_cleanup(client);
-            return ESP_FAIL;
-          }
-
-          // Update request URL based on location header.
-          esp_http_client_set_redirection(client);
-
-          // Send new request to updated URL.
-          err = esp_http_client_open(client, 0);
-          if (err != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to handle redirect: %s",
-                     esp_err_to_name(err));
-            esp_http_client_cleanup(client);
-            return err;
-          }
-          esp_http_client_fetch_headers(client);
-
-          continue;
+          ESP_LOGE(TAG,
+                   "Failed to download firmware: "
+                   "Firmware image incomplete");
+          esp_http_client_cleanup(client);
+          return ESP_FAIL;
         }
 
         // Fetch the firmware image header of the currently running firmware.
