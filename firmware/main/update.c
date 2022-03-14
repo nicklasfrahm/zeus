@@ -17,11 +17,14 @@
 #include "git.h"
 #include "http.h"
 #include "semver.h"
+#include "util.h"
 
 // Log prefix to be used.
 #define TAG "update"
 // Size of the buffer used to write the OTA data to the flash.
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 1024
+// Maximum size of the URL.
+#define URL_SIZE 512
 
 // Update channel, which may either be "latest" or an existing Git tag.
 static char* channel = "latest";
@@ -157,9 +160,10 @@ static esp_err_t update_execute(const char* firmware_url,
   esp_http_client_config_t config = {
       .url = firmware_url,
       .crt_bundle_attach = esp_crt_bundle_attach,
-      .timeout_ms = 10 * 1000,
+      .timeout_ms = 30 * 1000,
       .keep_alive_enable = true,
       .user_agent = user_agent,
+      .buffer_size_tx = BUFFER_SIZE,
       .buffer_size = BUFFER_SIZE,
   };
 
@@ -169,12 +173,20 @@ static esp_err_t update_execute(const char* firmware_url,
     return ESP_FAIL;
   }
 
-  // Follow redirects until resource is found.
-  int32_t status = 0;
-  do {
-    char url[512];
-    esp_http_client_get_url(client, url, 512);
-    ESP_LOGW(TAG, "Request: %s", url);
+  // A buffer to store the response payload.
+  char* buffer = NULL;
+  // Handle for update partition.
+  const esp_partition_t* part = esp_ota_get_next_update_partition(NULL);
+  // Count the image length.
+  int32_t image_length = 0;
+  // Flag whether image header was checked and firmware update was started.
+  bool image_header_checked = false;
+
+  // Stream data using the native API.
+  while (1) {
+    char url[URL_SIZE];
+    esp_http_client_get_url(client, url, URL_SIZE);
+    ESP_LOGI(TAG, "Update location: %s", url);
 
     err = esp_http_client_open(client, 0);
     if (err != ESP_OK) {
@@ -182,39 +194,52 @@ static esp_err_t update_execute(const char* firmware_url,
       esp_http_client_cleanup(client);
       return err;
     }
-    esp_http_client_fetch_headers(client);
 
-    status = esp_http_client_get_status_code(client);
-    ESP_LOGW(TAG, "Status: %d", status);
-
-    if (http_is_redirect(status)) {
-      status = 0;
-      esp_http_client_set_redirection(client);
+    int64_t content_length = esp_http_client_fetch_headers(client);
+    if (content_length < 0) {
+      ESP_LOGE(TAG, "Failed to fetch HTTP headers");
+      esp_http_client_cleanup(client);
+      return err;
     }
-  } while (status == 0);
+    int32_t buffer_size = min((int32_t)content_length, BUFFER_SIZE) + 1;
 
-  // Handle for update partition.
-  const esp_partition_t* part = esp_ota_get_next_update_partition(NULL);
-  // Receive buffer for the firmware update.
-  char buffer[BUFFER_SIZE + 1] = {0};
-  // Count the image length.
-  int32_t image_length = 0;
-  // Flag whether image header was checked and firmware update was started.
-  bool image_header_checked = false;
-  while (1) {
-    int32_t bytes_read = esp_http_client_read(client, buffer, BUFFER_SIZE);
+    // Allocate buffer and stream response payload.
+    if (buffer == NULL) {
+      buffer = (char*)calloc(buffer_size, sizeof(char));
+      if (!buffer) {
+        ESP_LOGE(TAG, "Failed to allocate memory");
+        esp_http_client_cleanup(client);
+        return ESP_FAIL;
+      }
+    }
+    int32_t bytes_read = esp_http_client_read(client, buffer, buffer_size);
+    if (bytes_read < 0) {
+      ESP_LOGE(TAG, "Failed to read HTTP response");
+      esp_http_client_cleanup(client);
+      return ESP_FAIL;
+    }
+
+    // Follow redirects.
+    int32_t status = esp_http_client_get_status_code(client);
+    if (http_is_redirect(status)) {
+      // We need to handle the redirect manually, because we are using the
+      // native API.
+      esp_http_client_set_redirection(client);
+
+      status = 0;
+      if (buffer != NULL) {
+        free(buffer);
+        buffer = NULL;
+      }
+
+      continue;
+    }
 
     // NOTE: I am aware that the arrangement of the `if` statements here adds
     // runtime overhead. I have deliberately chosen to structure the code like
     // this to make it more readable as I find nested `if else` statements hard
     // to comprehend. As for runtime performance optimization, remember that
     // "premature optimization is the root of all evil"!
-
-    if (bytes_read < 0) {
-      ESP_LOGE(TAG, "Failed to read TLS data");
-      esp_http_client_cleanup(client);
-      return ESP_FAIL;
-    }
 
     if (bytes_read > 0) {
       if (image_header_checked == false) {
@@ -252,10 +277,12 @@ static esp_err_t update_execute(const char* firmware_url,
         uint8_t dir = semver_compare(info_update.version, info_running.version);
         bool is_latest = strcmp(channel, "latest") == 0 ? true : false;
 
+        // TODO: Fix this logic.
         // If the channel is a specific version, we allow users to up- or
         // downgrade the firmware to a specific version. If the channel is
         // latest in contrast, we only allow firmware upgrades.
         if ((!is_latest && dir == 0) || (is_latest && dir <= 0)) {
+          ESP_LOGI(TAG, "Firmware already up-to-date");
           esp_http_client_cleanup(client);
           // It's okay if the firmware is already up-to-date,
           // we don't consider this an error.
@@ -301,6 +328,7 @@ static esp_err_t update_execute(const char* firmware_url,
       }
 
       if (esp_http_client_is_complete_data_received(client) == true) {
+        esp_http_client_cleanup(client);
         ESP_LOGI(TAG, "Received new firmware image: %d B", image_length);
         break;
       }
@@ -315,7 +343,6 @@ static esp_err_t update_execute(const char* firmware_url,
     } else {
       ESP_LOGE(TAG, "Failed to finish update: %s", esp_err_to_name(err));
     }
-    esp_http_client_cleanup(client);
     return err;
   }
 
@@ -323,7 +350,6 @@ static esp_err_t update_execute(const char* firmware_url,
   err = esp_ota_set_boot_partition(part);
   if (err != ESP_OK) {
     ESP_LOGE(TAG, "Failed to set boot partition: %s", esp_err_to_name(err));
-    esp_http_client_cleanup(client);
     return err;
   }
 

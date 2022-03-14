@@ -9,10 +9,11 @@
 
 void app_main(void) {
   // Prevent excessive logging.
-  esp_log_level_set("system_api", ESP_LOG_WARN);
   esp_log_level_set("esp_eth.netif.netif_glue", ESP_LOG_WARN);
   esp_log_level_set("esp_netif_handlers", ESP_LOG_WARN);
   esp_log_level_set("esp-x509-crt-bundle", ESP_LOG_WARN);
+  esp_log_level_set("HTTP_CLIENT", ESP_LOG_WARN);
+  esp_log_level_set("system_api", ESP_LOG_WARN);
 
   // Initialize non-volatile storage.
   esp_err_t err = nvs_flash_init();
