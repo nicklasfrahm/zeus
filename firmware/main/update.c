@@ -181,37 +181,50 @@ static esp_err_t update_execute(const char* firmware_url,
   int32_t image_length = 0;
   // Flag whether image header was checked and firmware update was started.
   bool image_header_checked = false;
+  // Indicates whether we are downloading or still following redirects.
+  bool downloading = 0;
+  // Size of the buffer for the response payload.
+  int32_t buffer_size = 0;
 
   // Stream data using the native API.
   while (1) {
-    char url[URL_SIZE];
-    esp_http_client_get_url(client, url, URL_SIZE);
-    ESP_LOGI(TAG, "Update location: %s", url);
+    // Check if the firware is downloading or if we are still following
+    // redirects to locate it.
+    if (!downloading) {
+      char url[URL_SIZE];
+      esp_http_client_get_url(client, url, URL_SIZE);
+      ESP_LOGI(TAG, "Update location: %s", url);
 
-    err = esp_http_client_open(client, 0);
-    if (err != ESP_OK) {
-      ESP_LOGE(TAG, "Failed to open HTTP connection: %s", esp_err_to_name(err));
-      esp_http_client_cleanup(client);
-      return err;
-    }
+      err = esp_http_client_open(client, 0);
+      if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to open HTTP connection: %s",
+                 esp_err_to_name(err));
+        esp_http_client_cleanup(client);
+        return err;
+      }
 
-    int64_t content_length = esp_http_client_fetch_headers(client);
-    if (content_length < 0) {
-      ESP_LOGE(TAG, "Failed to fetch HTTP headers");
-      esp_http_client_cleanup(client);
-      return err;
+      int64_t content_length = esp_http_client_fetch_headers(client);
+      if (content_length < 0) {
+        ESP_LOGE(TAG, "Failed to fetch HTTP headers");
+        esp_http_client_cleanup(client);
+        return err;
+      }
+      buffer_size = min((int32_t)content_length, BUFFER_SIZE);
     }
-    int32_t buffer_size = min((int32_t)content_length, BUFFER_SIZE) + 1;
 
     // Allocate buffer and stream response payload.
     if (buffer == NULL) {
-      buffer = (char*)calloc(buffer_size, sizeof(char));
+      buffer = (char*)malloc(buffer_size + 1);
+      buffer[buffer_size] = 0;
       if (!buffer) {
         ESP_LOGE(TAG, "Failed to allocate memory");
         esp_http_client_cleanup(client);
         return ESP_FAIL;
       }
     }
+
+    // We always need to receive the payload irrespective if we are being
+    // redirected or if we are downloading.
     int32_t bytes_read = esp_http_client_read(client, buffer, buffer_size);
     if (bytes_read < 0) {
       ESP_LOGE(TAG, "Failed to read HTTP response");
@@ -219,27 +232,31 @@ static esp_err_t update_execute(const char* firmware_url,
       return ESP_FAIL;
     }
 
-    // Follow redirects.
-    int32_t status = esp_http_client_get_status_code(client);
-    if (http_is_redirect(status)) {
-      // We need to handle the redirect manually, because we are using the
-      // native API.
-      esp_http_client_set_redirection(client);
+    if (!downloading) {
+      // Follow redirects.
+      int32_t status = esp_http_client_get_status_code(client);
+      if (http_is_redirect(status)) {
+        // We need to handle the redirect manually, because we are using the
+        // native API.
+        esp_http_client_set_redirection(client);
 
-      status = 0;
-      if (buffer != NULL) {
-        free(buffer);
-        buffer = NULL;
+        if (buffer != NULL) {
+          free(buffer);
+          buffer = NULL;
+        }
+
+        continue;
       }
-
-      continue;
     }
+
+    // Indicate that the firmware has been located and is being downloaded.
+    downloading = true;
 
     // NOTE: I am aware that the arrangement of the `if` statements here adds
     // runtime overhead. I have deliberately chosen to structure the code like
-    // this to make it more readable as I find nested `if else` statements hard
-    // to comprehend. As for runtime performance optimization, remember that
-    // "premature optimization is the root of all evil"!
+    // this to make it more readable as I find nested `if else` statements
+    // hard to comprehend. As for runtime performance optimization, remember
+    // that "premature optimization is the root of all evil"!
 
     if (bytes_read > 0) {
       if (image_header_checked == false) {
@@ -272,17 +289,16 @@ static esp_err_t update_execute(const char* firmware_url,
         }
         image_header_checked = true;
 
+        bool is_latest = strcmp(channel, "latest") == 0 ? true : false;
         // Update direction, where 1 is upgrade, -1 is downgrade and 0 is no
         // change.
-        uint8_t dir = semver_compare(info_update.version, info_running.version);
-        bool is_latest = strcmp(channel, "latest") == 0 ? true : false;
+        int8_t dir = semver_compare(info_update.version, info_running.version);
 
-        // TODO: Fix this logic.
         // If the channel is a specific version, we allow users to up- or
         // downgrade the firmware to a specific version. If the channel is
         // latest in contrast, we only allow firmware upgrades.
-        if ((!is_latest && dir == 0) || (is_latest && dir <= 0)) {
-          ESP_LOGI(TAG, "Firmware already up-to-date");
+        if ((is_latest && dir <= 0) || (!is_latest && dir == 0)) {
+          ESP_LOGI(TAG, "Skipping firmware update");
           esp_http_client_cleanup(client);
           // It's okay if the firmware is already up-to-date,
           // we don't consider this an error.
@@ -296,7 +312,7 @@ static esp_err_t update_execute(const char* firmware_url,
           esp_ota_abort(update_handle);
           return err;
         }
-        ESP_LOGI(TAG, "Successfully started update: %s", info_update.version);
+        ESP_LOGI(TAG, "Starting firmware update: %s", info_update.version);
       }
 
       err = esp_ota_write(update_handle, (const void*)buffer, bytes_read);
@@ -409,9 +425,9 @@ static void* update_thread(void* arg) {
 
 esp_err_t update_init(uint32_t interval_mins) {
   // TODO: Remove this and use events instead!
-  // Delay start of update thread to allow internet connection to be established
-  // first.
-  sleep(10);
+  // Delay start of update thread to allow internet connection to be
+  // established first.
+  sleep(6);
 
   // Start thread for automatic updates.
   pthread_attr_t attr;
