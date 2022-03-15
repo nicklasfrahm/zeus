@@ -33,7 +33,7 @@ jobs:
         run: echo v${{ steps.semantic.outputs.release-version }} > firmware/version.txt
 
       - name: Select configuration
-        run: mv firmware/config/${{ matrix.target }} firmware/sdkconfig
+        run: mv firmware/config/${{ matrix.target }} firmware/sdkconfig.defaults
 
       - name: Compile firmware
         uses: espressif/esp-idf-ci-action@main

@@ -3,6 +3,7 @@ build/
 
 # Don't commit local SDK configuration.
 sdkconfig*
+*.old
 
 # Don't allow settings for VS Code in a seperate file.
 .vscode/settings.json
