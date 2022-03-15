@@ -49,6 +49,6 @@ void semver_parse(semver_t* ver, const char* str);
  * @return 1 if the compare version is above the reference version, 0 if the
  * versions match and -1 otherwise.
  */
-uint8_t semver_compare(const char* compare, const char* reference);
+int8_t semver_compare(const char* compare, const char* reference);
 
 #endif

@@ -1,6 +1,7 @@
 #include "semver.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 /**
@@ -76,7 +77,7 @@ void semver_parse(semver_t* ver, const char* str) {
   semver_parse_int(&ver->prerelease, &str[cursor]);
 }
 
-uint8_t semver_compare(const char* compare, const char* reference) {
+int8_t semver_compare(const char* compare, const char* reference) {
   semver_t semver_compare = SEMVER_INITIALIZER;
   semver_t semver_reference = SEMVER_INITIALIZER;
 
@@ -99,7 +100,8 @@ uint8_t semver_compare(const char* compare, const char* reference) {
   }
 
   // Don't upgrade if the running firmware is "dirty" or and thus modified.
-  if (strstr(semver_reference.prerelease_id, "dirty") != NULL) {
+  bool modified = strstr(semver_reference.prerelease_id, "dirty") != NULL;
+  if (modified) {
     // Returning -1 indicates that this is always considered a downgrade.
     return -1;
   }
