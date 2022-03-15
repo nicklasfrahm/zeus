@@ -32,7 +32,7 @@ static int32_t semver_parse_int(uint32_t* ver, const char* str) {
   // Convert string to integer.
   *ver = (uint32_t)atoi(&str[cursor]);
 
-  return cursor;
+  return cursor + 1;
 }
 
 void semver_parse(semver_t* ver, const char* str) {
@@ -42,19 +42,19 @@ void semver_parse(semver_t* ver, const char* str) {
   // have been overkill for a simple parser like this.
 
   // Parse major version.
-  cursor = semver_parse_int(&ver->major, &str[cursor]);
+  cursor += semver_parse_int(&ver->major, &str[cursor]);
 
   // Parse minor version, if present.
   if (str[cursor] == 0) {
     return;
   }
-  cursor = semver_parse_int(&ver->minor, &str[cursor]);
+  cursor += semver_parse_int(&ver->minor, &str[cursor]);
 
   // Parse patch version, if present.
   if (str[cursor] == 0) {
     return;
   }
-  cursor = semver_parse_int(&ver->minor, &str[cursor]);
+  cursor += semver_parse_int(&ver->patch, &str[cursor]);
 
   // The optional pre-release identifier must be seperated with a hyphen.
   if (str[cursor] != '-') {
@@ -98,8 +98,13 @@ uint8_t semver_compare(const char* compare, const char* reference) {
     return diff > 0 ? 1 : -1;
   }
 
-  // TODO: How to handle dirty tags? This MIGHT be good enough, but testing is
-  // required. Ideally, dirty tags should always trump their regular tags.
+  // Don't upgrade if the running firmware is "dirty" or and thus modified.
+  if (strstr(semver_reference.prerelease_id, "dirty") != NULL) {
+    // Returning -1 indicates that this is always considered a downgrade.
+    return -1;
+  }
+
+  // This is a naive implementation which only handles "alpha" vs. "beta".
   diff = strcmp(semver_compare.prerelease_id, semver_reference.prerelease_id);
   if (diff) {
     return diff > 0 ? 1 : -1;
