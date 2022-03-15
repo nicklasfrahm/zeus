@@ -1,0 +1,104 @@
+openapi: 3.1.0
+info:
+  title: Zeus
+  version: '1.0'
+  description: Zeus is a cloud-native power bar that allows you to monitor your power consumption and control your appliances.
+  summary: A management API for the Zeus power bar.
+  contact:
+    name: GitHub
+    url: 'https://github.com/nicklasfrahm/zeus'
+  license:
+    identifier: MIT
+    name: MIT
+servers:
+  - url: 'http://localhost:80'
+    description: localhost
+tags:
+  - health
+paths:
+  /health:
+    parameters: []
+    get:
+      summary: ''
+      operationId: get-health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                x-examples:
+                  example-1:
+                    data:
+                      firmware:
+                        version: v1.4.0
+                        sdk: v5.0-dev-2046-g5963de1caf
+                        timestamp: 'Mar 15 2022 17:04:52'
+                        sha256: f38b64f0817eda5eeaf87323d1280cdfb4e0e442591c6976b3001f65086e9a2e
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Health'
+                required:
+                  - data
+              examples:
+                healthy:
+                  value:
+                    data:
+                      firmware:
+                        version: v1.4.0
+                        sdk: v5.0-dev-2046-g5963de1caf
+                        timestamp: 'Mar 15 2022 17:04:52'
+                        sha256: f38b64f0817eda5eeaf87323d1280cdfb4e0e442591c6976b3001f65086e9a2e
+      description: Read basic device information.
+      tags:
+        - health
+components:
+  schemas:
+    Health:
+      description: Basic status information about the device.
+      type: object
+      x-examples:
+        example-1:
+          firmware:
+            version: v1.4.0
+            sdk: v5.0-dev-2046-g5963de1caf
+            timestamp: 'Mar 15 2022 17:04:52'
+            sha256: f38b64f0817eda5eeaf87323d1280cdfb4e0e442591c6976b3001f65086e9a2e
+      properties:
+        firmware:
+          type: object
+          description: Inform
+          required:
+            - version
+            - sdk
+            - timestamp
+            - sha256
+          properties:
+            version:
+              type: string
+              minLength: 1
+              description: Firmware version.
+            sdk:
+              type: string
+              minLength: 1
+              description: Firmware SDK version.
+            timestamp:
+              type: string
+              minLength: 1
+              description: Compilation date and time.
+            sha256:
+              type: string
+              minLength: 1
+              description: SHA-256 checksum of the firmware.
+      required:
+        - firmware
+      examples:
+        - firmware:
+            version: v1.4.0
+            sdk: v5.0-dev-2046-g5963de1caf
+            timestamp: 'Mar 15 2022 17:04:52'
+            sha256: f38b64f0817eda5eeaf87323d1280cdfb4e0e442591c6976b3001f65086e9a2e
+      x-tags:
+        - health
