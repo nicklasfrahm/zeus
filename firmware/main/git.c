@@ -3,17 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 
-/////////////
-// git_url //
-/////////////
-
 static const char url[] = "https://github.com/nicklasfrahm/zeus";
 
 const char* git_url(void) { return url; }
-
-/////////////////////////
-// git_support_message //
-/////////////////////////
 
 static char support_message_template[] =
     "For support, please create an issue at: "
@@ -27,10 +19,6 @@ char* git_support_message(void) {
   }
   return support_message;
 }
-
-//////////////////////////////
-// git_release_download_url //
-//////////////////////////////
 
 char* git_release_download_url(const char* version, const char* file) {
   char* url;
