@@ -19,7 +19,7 @@ paths:
   /health:
     parameters: []
     get:
-      summary: ''
+      summary: Read basic device information.
       operationId: get-health
       responses:
         '200':
