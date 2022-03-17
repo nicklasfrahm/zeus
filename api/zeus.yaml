@@ -14,7 +14,7 @@ servers:
   - url: 'http://localhost:80'
     description: localhost
 tags:
-  - health
+  - name: health
 paths:
   /health:
     parameters: []
