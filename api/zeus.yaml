@@ -15,6 +15,7 @@ servers:
     description: localhost
 tags:
   - name: health
+    description: Endpoints related to device and status information.
 paths:
   /health:
     parameters: []
